@@ -12,8 +12,7 @@ sealed trait Stream[+A] {
   }
 
   def headOptionWithFoldRight: Option[A] = {
-    foldRight(None: Option[A])((a, b) =>
-      if (b.isEmpty) Some(a) else None)
+    foldRight(None: Option[A])((a, b) => if (b.isEmpty) Some(a) else None)
   }
 
   def toList: List[A] = {
@@ -69,17 +68,17 @@ sealed trait Stream[+A] {
   def forAll(p: A => Boolean): Boolean = foldRight(true)((a, b) => p(a) && b)
 
   def takeWhileViaUnfold(p: A => Boolean): Stream[A] = unfold(this) {
-    case Cons(h, t) if p(h()) => Some((h(), t().takeWhileViaUnfold(p)))
-    case Empty => None
+    case Cons(h, t) if p(h()) => Some((h(), t()))
+    case _ => None
   }
 
   def mapViaUnfold[B](f: A => B): Stream[B] = unfold(this) {
     case Cons(h, t) => Some((f(h()), t()))
-    case Empty => None
+    case _ => None
   }
 
-  def takeViaUnfold[A](s: Stream[A], n: Int): Stream[A] = unfold(s) {
-    case Cons(h, t) if n > 0 => Some((h(), takeViaUnfold(t(), n - 1)))
+  def takeViaUnfold(n: Int): Stream[A] = unfold(this) {
+    case Cons(h, t) if n > 0 => Some((h(), t().takeViaUnfold(n - 1)))
     case _ => None
   }
 

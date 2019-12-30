@@ -66,15 +66,15 @@ class StreamTest extends FunSuite {
   }
 
   test("mapViaUnfold") {
-    assert(mapViaUnfold(onesViaUnfold())(_ + 2).take(2).toList === List(3, 3))
+    assert(onesViaUnfold().mapViaUnfold(_ + 2).take(2).toList === List(3, 3))
   }
 
   test("takeViaUnfold") {
-    assert(takeViaUnfold(onesViaUnfold(), 2).toList === List(1, 1))
+    assert(onesViaUnfold().takeViaUnfold(2).toList === List(1, 1))
   }
 
   test("takeWhileViaUnfold") {
-    assert(takeWhileViaUnfold(Stream(1, 2, 3))(_ < 3).toList === List(1, 2))
+    assert(Stream(1, 2, 3).takeWhileViaUnfold(_ < 3).toList === List(1, 2))
   }
 
 }

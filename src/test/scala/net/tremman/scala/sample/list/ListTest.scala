@@ -99,12 +99,17 @@ class ListTest extends FunSuite {
   }
 
   test("digits") {
+    // Set
     def digits(n: Int): List[Int] = n match {
       case n if n == 0 => Nil
       case n => Cons(n % 10, digits(n / 10))
     }
 
-    assert(List.reverseWithFoldLeft(digits(135)) === List(1, 3, 5))
+    // Act
+    val l: List[Int] = digits(135)
+
+    // Assert
+    assert(List.reverseWithFoldLeft(l) === List(1, 3, 5))
   }
 
 }
