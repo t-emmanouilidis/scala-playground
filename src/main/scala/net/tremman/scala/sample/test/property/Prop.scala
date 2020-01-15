@@ -17,7 +17,7 @@ case class Gen[+A](sample: State[RNG, A]) {
 
   def map[B](f: A => B): Gen[B] = Gen(sample.map(f))
 
-  def map2[B, C](anotherGen: Gen[B])(f: (A, B) => C) =
+  def map2[B, C](anotherGen: Gen[B])(f: (A, B) => C): Gen[C] =
     Gen(sample.map2(anotherGen.sample)(f))
 
   def **[B](anotherGen: Gen[B]): Gen[(A, B)] = (this map2 anotherGen) ((_, _))
@@ -49,6 +49,8 @@ object Gen {
   def listOf[A](g: Gen[A]): SGen[List[A]] = SGen(n => g.listOfN(n))
 
   def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen(n => g.listOfN(n.max(1)))
+
+  def genStringIntFn(g: Gen[Int]): Gen[String => Int] = g.map((i: Int) => (s: String) => i)
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {
@@ -141,12 +143,18 @@ object Prop {
     if (p) Passed else Failed("()", 0)
   })
 
-  val S = Gen.weighted(Gen.choose(1, 4).map(Executors.newFixedThreadPool) -> 0.75,
+  private val ES = Gen.weighted(Gen.choose(1, 4).map(Executors.newFixedThreadPool) -> 0.75,
     Gen.unit(Executors.newCachedThreadPool) -> 0.25)
 
+  object ** {
+    def unapply[A, B](p: (A, B)): Some[(A, B)] = Some(p)
+  }
+
   def forAllPar[A](g: Gen[A])(f: A => Par[Boolean]): Prop =
-    forAll(S ** g) {
-      case (es, a) => f(a)(es).get()
+    forAll(ES ** g) {
+      case es ** a => f(a)(es).get()
     }
+
+  def checkPar(p: Par[Boolean]): Prop = forAllPar(Gen.unit(()))(_ => p)
 
 }

@@ -1,7 +1,5 @@
 package net.tremman.scala.sample.test.property
 
-import java.util.concurrent.Executors
-
 import net.tremman.scala.sample.parallel.Par
 import net.tremman.scala.sample.parallel.Par.Par
 import org.scalatest.FunSuite
@@ -46,19 +44,21 @@ class PropTest extends FunSuite {
   }
 
   test("par.map.unit") {
-    val es = Executors.newCachedThreadPool
-
     def equal[A](one: Par[A], other: Par[A]): Par[Boolean] = Par.map2(one, other)(_ == _)
 
-    val mapProp = Prop.check {
-      equal(
-        Par.map(Par.unit(1))(_ + 1),
-        Par.unit(2)
-      )(es).get()
-    }
-    Prop.run(mapProp)
+    val prop = Prop.checkPar(equal(
+      Par.map(Par.unit(1))(_ + 1),
+      Par.unit(2)
+    ))
+
+    Prop.run(prop)
   }
 
-
+  test("list.takeWhile") {
+    val int = Gen.choose(0, Int.MaxValue)
+    val isEven = (i: Int) => i % 2 == 0
+    val takeWhileProp = Prop.forAll(Gen.listOf(int))(ls => ls.takeWhile(isEven).forall(isEven(_)))
+    Prop.run(takeWhileProp)
+  }
 
 }
