@@ -146,7 +146,7 @@ object Prop {
 
   def forAllPar[A](g: Gen[A])(f: A => Par[Boolean]): Prop =
     forAll(S ** g) {
-      case (es, a) => f(a)(es).get()
+      case es ** a => f(a)(es).get()
     }
 
 }
