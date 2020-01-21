@@ -4,6 +4,16 @@ import org.scalatest.FunSuite
 
 class ParsersTest extends FunSuite {
 
+  def stringParsers(): Parsers[ParseError, Parser[String]] = {
+    val parsers: Parsers[ParseError, Parser[String]] = ???
+    parsers
+  }
+
+  def intParsers(): Parsers[ParseError, Parser[Int]] = {
+    val parsers: Parsers[ParseError, Parser[Int]] = ???
+    parsers
+  }
+
   test("char.basic") {
     val parsers: Parsers[ParseError, Parser[Char]] = ???
     val c: Char = 'c'
@@ -11,13 +21,13 @@ class ParsersTest extends FunSuite {
   }
 
   test("string.basic") {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+    val parsers = stringParsers()
     val str: String = "aString"
     assert(parsers.run(parsers.string(str))(str) === Right(str))
   }
 
   test("or.basic") {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+    val parsers = stringParsers()
     import parsers._
     val theParser: Parser[String] = "abra" | "cadabra"
     assert(parsers.run(theParser)("abra") === Right("abra"))
@@ -25,7 +35,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("or parser should be commutative") {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+    val parsers = stringParsers()
     import parsers._
     val oneParser: Parser[String] = "abra" | "cadabra"
     val otherParser: Parser[String] = "cadabra" | "abra"
@@ -33,7 +43,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("or parser should be associative") {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+    val parsers = stringParsers()
     import parsers._
     val oneParser = "a".or("b").or("c")
     val otherParser = "b".or("c").or("a")
@@ -41,7 +51,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("list.basic") {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+    val parsers = stringParsers()
     import parsers._
     assert(run(listOfN(3, "ab" | "cad"))("ababcad") === Right("ababcad"))
     assert(run(listOfN(3, "ab" | "cad"))("cadabab") === Right("cadabab"))
@@ -49,7 +59,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("basic int zero or more") {
-    val parsers: Parsers[ParseError, Parser[Int]] = ???
+    val parsers = intParsers()
     import parsers._
     assert(run(zeroOrMore("a"))("aaa") === Right(3))
     assert(run(zeroOrMore("aaa"))("aaa") === Right(1))
@@ -57,7 +67,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("basic int one or more") {
-    val parsers: Parsers[ParseError, Parser[Int]] = ???
+    val parsers = intParsers()
     import parsers._
     assert(run(oneOrMore("a"))("aaa") === Right(3))
     assert(run(oneOrMore("aaa"))("aaa") === Right(1))
@@ -65,7 +75,7 @@ class ParsersTest extends FunSuite {
   }
 
   test("basic followed by") {
-    val parsers: Parsers[ParseError, Parser[Int]] = ???
+    val parsers = intParsers()
     import parsers._
     // the first parser is converted implicitly to a ParserOps instance which has the method followedBy
     assert(run(zeroOrMore("a").followedBy(oneOrMore("b")))("aaab") === Right((3, 1)))
@@ -73,4 +83,19 @@ class ParsersTest extends FunSuite {
     assert(run(zeroOrMore("a").followedBy(oneOrMore("b")))("aaaab") === Right((4, 1)))
   }
 
+  test("basic map") {
+    val parsers = intParsers()
+    import parsers._
+    val numA: Parser[Int] = char('a').many().map(_.size)
+    assert(run(numA)("aaa") === Right(3))
+    assert(run(numA)("b") === Right(0))
+  }
+
+  test("basic slice") {
+    val parsers = stringParsers()
+    import parsers._
+    assert(run(slice(('a' | 'b').many()))("aaba") === Right("aaba"))
+  }
+
 }
+
