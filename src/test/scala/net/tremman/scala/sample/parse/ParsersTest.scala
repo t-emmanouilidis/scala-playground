@@ -74,13 +74,13 @@ class ParsersTest extends FunSuite {
     assert(run(oneOrMore("a"))("b123") === Left(BasicParseError("Expected one or more 'a'")))
   }
 
-  test("basic followed by") {
+  test("basic product") {
     val parsers = intParsers()
     import parsers._
     // the first parser is converted implicitly to a ParserOps instance which has the method followedBy
-    assert(run(zeroOrMore("a").followedBy(oneOrMore("b")))("aaab") === Right((3, 1)))
-    assert(run(zeroOrMore("a").followedBy(oneOrMore("b")))("bbb") === Right((0, 3)))
-    assert(run(zeroOrMore("a").followedBy(oneOrMore("b")))("aaaab") === Right((4, 1)))
+    assert(run(zeroOrMore("a").product(oneOrMore("b")))("aaab") === Right((3, 1)))
+    assert(run(zeroOrMore("a").product(oneOrMore("b")))("bbb") === Right((0, 3)))
+    assert(run(zeroOrMore("a").product(oneOrMore("b")))("aaaab") === Right((4, 1)))
   }
 
   test("basic map") {
@@ -94,7 +94,7 @@ class ParsersTest extends FunSuite {
   test("basic slice") {
     val parsers = stringParsers()
     import parsers._
-    assert(run(slice(('a' | 'b').many()))("aaba") === Right("aaba"))
+    assert(run(slice((char('a') | 'b').many()))("aaba") === Right("aaba"))
   }
 
 }

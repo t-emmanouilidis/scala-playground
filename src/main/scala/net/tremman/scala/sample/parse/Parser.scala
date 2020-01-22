@@ -28,13 +28,18 @@ trait Parsers[ParseError, Parser[+_]] {
 
   def slice[A](p: Parser[A]): Parser[String]
 
-  def many[A](p: Parser[A]): Parser[List[A]]
-
   def map[A, B](p: Parser[A])(f: A => B): Parser[B]
 
-  def zeroOrMore(str: String): Parser[Int]
+  def product[A, B](one: Parser[A], another: Parser[B]): Parser[(A, B)]
 
-  def oneOrMore(str: String): Parser[Int]
+  def map2[A, B, C](one: Parser[A], another: Parser[B])(f: (A, B) => C): Parser[C] =
+    map(product(one, another)) {
+      case (a, b) => f(a, b)
+    }
+
+  def zeroOrMore[A](aParser: Parser[A]): Parser[List[A]] = ???
+
+  def oneOrMore[A](aParser: Parser[A]): Parser[List[A]] = map2(aParser, zeroOrMore(aParser))(_ :: _)
 
   def succeeds[A](a: A): Parser[A] = string("").map(_ => a)
 
@@ -45,11 +50,11 @@ trait Parsers[ParseError, Parser[+_]] {
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
-  def followedBy[A](one: Parser[A], another: Parser[A]): Parser[A]
-
   case class ParserOps[A](one: Parser[A]) {
 
     def map[B](f: A => B): Parser[B] = self.map(one)(f)
+
+    def map2[B, C](another: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(one, another)(f)
 
     def slice(): Parser[String] = self.slice(one)
 
@@ -63,7 +68,9 @@ trait Parsers[ParseError, Parser[+_]] {
 
     def or[B >: A](another: => Parser[B]): Parser[B] = self.or(one, another)
 
-    def followedBy[B >: A](another: Parser[B]): Parser[B] = self.followedBy(one, another)
+    def product[B >: A](another: Parser[B]): Parser[(A, B)] = self.product(one, another)
+
+    def **[B >: A](another: Parser[B]): Parser[(A, B)] = product(another)
   }
 
   object Laws {
