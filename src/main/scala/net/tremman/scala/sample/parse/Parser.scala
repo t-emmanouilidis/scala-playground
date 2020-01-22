@@ -37,11 +37,11 @@ trait Parsers[ParseError, Parser[+_]] {
       case (a, b) => f(a, b)
     }
 
-  def zeroOrMore[A](aParser: Parser[A]): Parser[List[A]] = ???
+  def zeroOrMore[A](aParser: Parser[A]): Parser[List[A]] = map2(aParser, zeroOrMore(aParser))()
 
   def oneOrMore[A](aParser: Parser[A]): Parser[List[A]] = map2(aParser, zeroOrMore(aParser))(_ :: _)
 
-  def succeeds[A](a: A): Parser[A] = string("").map(_ => a)
+  def succeed[A](a: A): Parser[A] = string("").map(_ => a)
 
   implicit def string(str: String): Parser[String]
 
@@ -58,11 +58,9 @@ trait Parsers[ParseError, Parser[+_]] {
 
     def slice(): Parser[String] = self.slice(one)
 
-    def many(): Parser[List[A]] = self.many(one)
+    def zeroOrMore(aParser: Parser[A]): Parser[List[A]] = self.zeroOrMore(aParser)
 
-    def zeroOrMore(str: String): Parser[Int] = self.zeroOrMore(str)
-
-    def oneOrMore(str: String): Parser[Int] = self.oneOrMore(str)
+    def oneOrMore(aParser: Parser[A]): Parser[List[A]] = self.oneOrMore(aParser)
 
     def |[B >: A](another: Parser[B]): Parser[B] = self.or(one, another)
 
