@@ -61,32 +61,32 @@ class ParsersTest extends FunSuite {
   test("basic int zero or more") {
     val parsers = intParsers()
     import parsers._
-    assert(run(zeroOrMore("a"))("aaa") === Right(3))
-    assert(run(zeroOrMore("aaa"))("aaa") === Right(1))
-    assert(run(zeroOrMore("a"))("b123") === Right(0))
+    assert(run(zeroOrMoreOf("a"))("aaa") === Right(3))
+    assert(run(zeroOrMoreOf("aaa"))("aaa") === Right(1))
+    assert(run(zeroOrMoreOf("a"))("b123") === Right(0))
   }
 
   test("basic int one or more") {
     val parsers = intParsers()
     import parsers._
-    assert(run(oneOrMore("a"))("aaa") === Right(3))
-    assert(run(oneOrMore("aaa"))("aaa") === Right(1))
-    assert(run(oneOrMore("a"))("b123") === Left(BasicParseError("Expected one or more 'a'")))
+    assert(run(oneOrMoreOf("a"))("aaa") === Right(3))
+    assert(run(oneOrMoreOf("aaa"))("aaa") === Right(1))
+    assert(run(oneOrMoreOf("a"))("b123") === Left(BasicParseError("Expected one or more 'a'")))
   }
 
   test("basic product") {
     val parsers = intParsers()
     import parsers._
     // the first parser is converted implicitly to a ParserOps instance which has the method followedBy
-    assert(run(zeroOrMore("a").product(oneOrMore("b")))("aaab") === Right((3, 1)))
-    assert(run(zeroOrMore("a").product(oneOrMore("b")))("bbb") === Right((0, 3)))
-    assert(run(zeroOrMore("a").product(oneOrMore("b")))("aaaab") === Right((4, 1)))
+    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaab") === Right((3, 1)))
+    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("bbb") === Right((0, 3)))
+    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaaab") === Right((4, 1)))
   }
 
   test("basic map") {
     val parsers = intParsers()
     import parsers._
-    val numA: Parser[Int] = char('a').many().map(_.size)
+    val numA: Parser[Int] = char('a').zeroOrMoreOf().map(_.size)
     assert(run(numA)("aaa") === Right(3))
     assert(run(numA)("b") === Right(0))
   }
@@ -94,7 +94,14 @@ class ParsersTest extends FunSuite {
   test("basic slice") {
     val parsers = stringParsers()
     import parsers._
-    assert(run(slice((char('a') | 'b').many()))("aaba") === Right("aaba"))
+    assert(run(slice((char('a') | char('b')).zeroOrMoreOf()))("aaba") === Right("aaba"))
+  }
+
+  test("basic context sensitivity") {
+    val parsers = stringParsers()
+    import parsers._
+    val parser = digit.flatMap(n => listOfN(Integer.parseInt(n), letter)).slice()
+    assert(run(parser)("4aaaa") === Right("4aaaa"))
   }
 
 }

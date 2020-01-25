@@ -34,6 +34,12 @@ trait Parsers[ParseError, Parser[+_]] {
   def regex(regex: Regex): Parser[String]
 
   // non primitives
+  def digit: Parser[String] = regex("\\d".r)
+
+  def letter: Parser[String] = regex("[a-zA-Z]".r)
+
+  def whitespace(str: String): Parser[String] = regex("\\s".r)
+
   implicit def char(c: Char): Parser[Char] = string(c.toString).map(_.charAt(0))
 
   def orString(str1: String, str2: String): Parser[String] = or(string(str1), string(str2))
@@ -52,11 +58,11 @@ trait Parsers[ParseError, Parser[+_]] {
       b <- another
     } yield f(a, b)
 
-  def zeroOrMore[A](aParser: Parser[A]): Parser[List[A]] =
-    map2(aParser, zeroOrMore(aParser))(_ :: _) or succeed(List())
+  def zeroOrMoreOf[A](aParser: Parser[A]): Parser[List[A]] =
+    map2(aParser, zeroOrMoreOf(aParser))(_ :: _) or succeed(List())
 
-  def oneOrMore[A](aParser: Parser[A]): Parser[List[A]] =
-    map2(aParser, zeroOrMore(aParser))(_ :: _)
+  def oneOrMoreOf[A](aParser: Parser[A]): Parser[List[A]] =
+    map2(aParser, zeroOrMoreOf(aParser))(_ :: _)
 
   // this is the implicit function used to convert a Parser instance to a ParserOps instance
   implicit def operators[A](theParser: Parser[A]): ParserOps[A] = ParserOps(theParser)
@@ -65,21 +71,23 @@ trait Parsers[ParseError, Parser[+_]] {
 
   case class ParserOps[A](theParser: Parser[A]) {
 
-    def map[B](f: A => B): Parser[B] = self.map(theParser)(f)
+    // primitive
+    def slice(): Parser[String] = self.slice(theParser)
 
     def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(theParser)(f)
 
+    def or[B >: A](another: => Parser[B]): Parser[B] = self.or(theParser, another)
+
+    // non primitive
+    def map[B](f: A => B): Parser[B] = self.map(theParser)(f)
+
     def map2[B, C](another: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(theParser, another)(f)
 
-    def slice(): Parser[String] = self.slice(theParser)
+    def zeroOrMoreOf(): Parser[List[A]] = self.zeroOrMoreOf(theParser)
 
-    def zeroOrMore(aParser: Parser[A]): Parser[List[A]] = self.zeroOrMore(aParser)
-
-    def oneOrMore(aParser: Parser[A]): Parser[List[A]] = self.oneOrMore(aParser)
+    def oneOrMoreOf(): Parser[List[A]] = self.oneOrMoreOf(theParser)
 
     def |[B >: A](another: Parser[B]): Parser[B] = self.or(theParser, another)
-
-    def or[B >: A](another: => Parser[B]): Parser[B] = self.or(theParser, another)
 
     def product[B >: A](another: Parser[B]): Parser[(A, B)] = self.product(theParser, another)
 
@@ -93,7 +101,7 @@ trait Parsers[ParseError, Parser[+_]] {
     def mapLaw[A](p: Parser[A])(in: Gen[String]): Prop = equal(p, p.map(a => a))(in)
 
     def succeedLaw[A](p: Parser[A])(in: Gen[String]): Prop =
-      Prop.forAll(in)(str => run(succeeds(str))("1") == Right(str))
+      Prop.forAll(in)(str => run(succeed(str))("1") == Right(str))
   }
 
 }
