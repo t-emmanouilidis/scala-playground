@@ -11,10 +11,6 @@ trait ParseError {
 case class BasicParseError(msg: String) extends ParseError {
 }
 
-class Parser[A] {
-
-}
-
 trait Parsers[ParseError, Parser[+_]] {
   self =>
 
@@ -107,5 +103,4 @@ trait Parsers[ParseError, Parser[+_]] {
 }
 
 object Parsers {
-
 }

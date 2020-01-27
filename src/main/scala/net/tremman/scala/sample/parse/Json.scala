@@ -1,14 +1,18 @@
 package net.tremman.scala.sample.parse
 
+import net.tremman.scala.sample.parse.BasicJsonParsers.{JsonParser, Parser}
+
 import scala.util.matching.Regex
 
-trait Json {
+object BasicJsonParsers {
+  type Parser[A] = String => A
 
+  type JsonParser = Parser[Json]
 }
 
-class JsonParsers extends Parsers[BasicParseError, Parser[String]] {
+class BasicJsonParsers extends Parsers[BasicParseError, JsonParser] {
 
-  override def run[A](p: Parser[A])(input: String): Either[BasicParseError, A] = ???
+  override def run(p: JsonParser)(input: String): Either[BasicParseError, A] = ???
 
   override def slice[A](p: Parser[A]): Parser[String] = ???
 
@@ -22,6 +26,10 @@ class JsonParsers extends Parsers[BasicParseError, Parser[String]] {
 
 }
 
+trait Json {
+
+}
+
 object Json {
 
   case object JsonNull extends Json
@@ -31,7 +39,7 @@ object Json {
   def jsonParser[Err, Parser[+_]](parsers: Parsers[Err, Parser]): Parser[Json] = {
     import parsers._
     val spaces = char(' ').zeroOrMoreOf().slice()
-    null
+    Json.jsonParser(parsers)
   }
 }
 

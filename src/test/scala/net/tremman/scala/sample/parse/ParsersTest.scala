@@ -4,18 +4,18 @@ import org.scalatest.FunSuite
 
 class ParsersTest extends FunSuite {
 
-  def stringParsers(): Parsers[ParseError, Parser[String]] = {
-    val parsers: Parsers[ParseError, Parser[String]] = ???
+  def stringParsers(): Parsers[ParseError, Parser] = {
+    val parsers: Parsers[ParseError, Parser] = ???
     parsers
   }
 
-  def intParsers(): Parsers[ParseError, Parser[Int]] = {
-    val parsers: Parsers[ParseError, Parser[Int]] = ???
+  def intParsers(): Parsers[ParseError, Parser] = {
+    val parsers: Parsers[ParseError, Parser] = ???
     parsers
   }
 
   test("char.basic") {
-    val parsers: Parsers[ParseError, Parser[Char]] = ???
+    val parsers: Parsers[ParseError, Parser] = ???
     val c: Char = 'c'
     assert(parsers.run(parsers.char(c))(c.toString) === Right(c))
   }
@@ -53,55 +53,55 @@ class ParsersTest extends FunSuite {
   test("list.basic") {
     val parsers = stringParsers()
     import parsers._
-    assert(run(listOfN(3, "ab" | "cad"))("ababcad") === Right("ababcad"))
-    assert(run(listOfN(3, "ab" | "cad"))("cadabab") === Right("cadabab"))
-    assert(run(listOfN(3, "ab" | "cad"))("cadabab") === Right("ababab"))
+    assert(parsers.run(listOfN(3, "ab" | "cad"))("ababcad") === Right("ababcad"))
+    assert(parsers.run(listOfN(3, "ab" | "cad"))("cadabab") === Right("cadabab"))
+    assert(parsers.run(listOfN(3, "ab" | "cad"))("cadabab") === Right("ababab"))
   }
 
   test("basic int zero or more") {
     val parsers = intParsers()
     import parsers._
-    assert(run(zeroOrMoreOf("a"))("aaa") === Right(3))
-    assert(run(zeroOrMoreOf("aaa"))("aaa") === Right(1))
-    assert(run(zeroOrMoreOf("a"))("b123") === Right(0))
+    assert(parsers.run(zeroOrMoreOf("a"))("aaa") === Right(3))
+    assert(parsers.run(zeroOrMoreOf("aaa"))("aaa") === Right(1))
+    assert(parsers.run(zeroOrMoreOf("a"))("b123") === Right(0))
   }
 
   test("basic int one or more") {
     val parsers = intParsers()
     import parsers._
-    assert(run(oneOrMoreOf("a"))("aaa") === Right(3))
-    assert(run(oneOrMoreOf("aaa"))("aaa") === Right(1))
-    assert(run(oneOrMoreOf("a"))("b123") === Left(BasicParseError("Expected one or more 'a'")))
+    assert(parsers.run(oneOrMoreOf("a"))("aaa") === Right(3))
+    assert(parsers.run(oneOrMoreOf("aaa"))("aaa") === Right(1))
+    assert(parsers.run(oneOrMoreOf("a"))("b123") === Left(BasicParseError("Expected one or more 'a'")))
   }
 
   test("basic product") {
     val parsers = intParsers()
     import parsers._
     // the first parser is converted implicitly to a ParserOps instance which has the method followedBy
-    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaab") === Right((3, 1)))
-    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("bbb") === Right((0, 3)))
-    assert(run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaaab") === Right((4, 1)))
+    assert(parsers.run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaab") === Right((3, 1)))
+    assert(parsers.run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("bbb") === Right((0, 3)))
+    assert(parsers.run(zeroOrMoreOf("a").product(oneOrMoreOf("b")))("aaaab") === Right((4, 1)))
   }
 
   test("basic map") {
     val parsers = intParsers()
     import parsers._
     val numA: Parser[Int] = char('a').zeroOrMoreOf().map(_.size)
-    assert(run(numA)("aaa") === Right(3))
-    assert(run(numA)("b") === Right(0))
+    assert(parsers.run(numA)("aaa") === Right(3))
+    assert(parsers.run(numA)("b") === Right(0))
   }
 
   test("basic slice") {
     val parsers = stringParsers()
     import parsers._
-    assert(run(slice((char('a') | char('b')).zeroOrMoreOf()))("aaba") === Right("aaba"))
+    assert(parsers.run(slice((char('a') | char('b')).zeroOrMoreOf()))("aaba") === Right("aaba"))
   }
 
   test("basic context sensitivity") {
     val parsers = stringParsers()
     import parsers._
     val parser = digit.flatMap(n => listOfN(Integer.parseInt(n), letter)).slice()
-    assert(run(parser)("4aaaa") === Right("4aaaa"))
+    assert(parsers.run(parser)("4aaaa") === Right("4aaaa"))
   }
 
 }
