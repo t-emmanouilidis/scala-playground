@@ -1,5 +1,6 @@
 package net.tremman.scala.sample.parse
 
+import net.tremman.scala.sample.parse.Parsers._
 import net.tremman.scala.sample.test.property.{Gen, Prop, SGen}
 
 import scala.language.{higherKinds, implicitConversions}
@@ -13,7 +14,7 @@ import scala.util.matching.Regex
 trait Parsers[Parser[+_]] {
   self =>
 
-  def run[A](p: Parser[A])(input: String): Either[ParseError, A]
+  def run[A](p: Parser[A])(input: String): Result[A]
 
   // primitives
   def slice[A](p: Parser[A]): Parser[String]
@@ -70,19 +71,9 @@ trait Parsers[Parser[+_]] {
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
-  case class ParseLocation(input: String, offset: Int = 0) {
-    lazy val line: Int = input.slice(0, offset + 1).count(_ == '\n') + 1
-    lazy val column: Int = input.slice(0, offset + 1).lastIndexOf('\n') match {
-      case -1 => offset + 1
-      case lineStart => offset - lineStart
-    }
-  }
+  def errorLocation(e: ParseError): ParseLocation = e.stack.head._1
 
-  case class ParseError(stack: List[(ParseLocation, String)])
-
-  def errorLocation(e: ParseError): ParseLocation
-
-  def errorMessage(e: ParseError): String
+  def errorMessage(e: ParseError): String = e.stack.head._2
 
   case class ParserOps[A](theParser: Parser[A]) {
 
@@ -116,13 +107,13 @@ trait Parsers[Parser[+_]] {
     def mapLaw[A](p: Parser[A])(in: Gen[String]): Prop = equal(p, p.map(a => a))(in)
 
     def succeedLaw[A](p: Parser[A])(in: Gen[String]): Prop =
-      Prop.forAll(in)(str => run(succeed(str))("1") == Right(str))
+      Prop.forAll(in)(str => run(succeed(str))("1") == Success(str, str.length))
 
     def labelLaw[A](p: Parser[A])(in: SGen[String]): Prop =
       Prop.forAll(in ** Gen.string) {
         case (input, msg) =>
           run(errorLabel(msg)(p))(input) match {
-            case Left(e) => errorMessage(e) == msg
+            case Failure(e, _) => errorMessage(e) == msg
             case _ => true
           }
       }
@@ -131,4 +122,52 @@ trait Parsers[Parser[+_]] {
 }
 
 object Parsers {
+
+  trait Result[+A] {
+    def mapError(f: ParseError => ParseError): Result[A] = this match {
+      case Failure(e, committed) => Failure(f(e), committed)
+      case _ => this
+    }
+
+    def uncommit: Result[A] = this match {
+      case Failure(e, true) => Failure.uncommitted(e)
+      case _ => this
+    }
+  }
+
+  case class Success[+A](get: A, charsConsumed: Int) extends Result[A]
+
+  case class Failure private (get: ParseError, committed: Boolean = true) extends Result[Nothing]
+
+  object Failure {
+    def committed(error: ParseError): Failure = Failure(error)
+
+    def uncommitted(error: ParseError): Failure = Failure(error, committed = false)
+  }
+
+  case class ParseLocation(input: String, offset: Int = 0) {
+    lazy val line: Int = input.slice(0, offset + 1).count(_ == '\n') + 1
+    lazy val column: Int = input.slice(0, offset + 1).lastIndexOf('\n') match {
+      case -1 => offset + 1
+      case lineStart => offset - lineStart
+    }
+  }
+
+  case class ParseError(stack: List[(ParseLocation, String)]) {
+    def push(theLocation: ParseLocation, theMessage: String): ParseError =
+      copy(stack = (theLocation, theMessage) :: stack)
+
+    def label(theLabel: String): ParseError = copy(stack = latestLocation.map((_, theLabel)).toList)
+
+    def latestLocation: Option[ParseLocation] = latestScope.map(_._1)
+
+    def latestScope: Option[(ParseLocation, String)] = stack.lastOption
+  }
+
+  object ParseError {
+    def errorOccurredOn(theLocation: ParseLocation, withMessage: String): ParseError =
+      ParseError(List((theLocation, withMessage)))
+
+  }
+
 }
