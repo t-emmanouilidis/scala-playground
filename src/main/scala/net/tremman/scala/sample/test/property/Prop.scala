@@ -6,6 +6,8 @@ import net.tremman.scala.sample.parallel.Par.Par
 import net.tremman.scala.sample.state.{RNG, State}
 import net.tremman.scala.sample.test.property.Prop.{FailedCase, MaxSize, SuccessCount, TestCases}
 
+import scala.languageFeature.implicitConversions
+
 case class Gen[+A](sample: State[RNG, A]) {
   def flatMap[B](f: A => Gen[B]): Gen[B] = Gen(sample.flatMap((a: A) => f(a).sample))
 
@@ -51,12 +53,28 @@ object Gen {
   def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen(n => g.listOfN(n.max(1)))
 
   def genStringIntFn(g: Gen[Int]): Gen[String => Int] = g.map((i: Int) => (s: String) => i)
+
+  implicit def unsized[A](g: Gen[A]): SGen[A] = SGen(_ => g)
+
+  object ** {
+    def unapply[A, B](p: (A, B)): Some[(A, B)] = Some(p)
+  }
+
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {
   def apply(n: Int): Gen[A] = forSize(n)
 
   def map[B](f: A => B): SGen[B] = SGen(forSize(_).map(f))
+
+  def flatMap[B](f: A => SGen[B]): SGen[B] = {
+    val tempGen: Int => Gen[B] = n => {
+      forSize(n).flatMap((a: A) => f(a).forSize(n))
+    }
+    SGen(tempGen)
+  }
+
+  def **[B](s2: SGen[B]): SGen[(A, B)] = SGen(n => apply(n).**(s2(n)))
 }
 
 sealed trait Result {

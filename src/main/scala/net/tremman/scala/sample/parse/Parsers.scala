@@ -1,17 +1,16 @@
 package net.tremman.scala.sample.parse
 
-import net.tremman.scala.sample.test.property.{Gen, Prop}
+import net.tremman.scala.sample.test.property.{Gen, Prop, SGen}
 
+import scala.language.{higherKinds, implicitConversions}
 import scala.util.matching.Regex
 
-trait ParseError {
-  def msg: String
-}
-
-case class BasicParseError(msg: String) extends ParseError {
-}
-
-trait Parsers[ParseError, Parser[+_]] {
+// trait Parsers here is a second-order type,
+// abstracts over a type constructor which abstracts over a first-order type
+// abstraction over a first-order type
+// Parser[+_] is a type constructor here
+// (a type with a type constructor is called a higher kinded type)
+trait Parsers[Parser[+_]] {
   self =>
 
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
@@ -28,6 +27,12 @@ trait Parsers[ParseError, Parser[+_]] {
   def flatMap[A, B](aParser: Parser[A])(f: A => Parser[B]): Parser[B]
 
   def regex(regex: Regex): Parser[String]
+
+  def errorLabel[A](errorLabel: String)(aParser: Parser[A]): Parser[A]
+
+  def scope[A](scopeLabel: String)(aParser: Parser[A]): Parser[A]
+
+  def attempt[A](aParser: Parser[A]): Parser[A]
 
   // non primitives
   def digit: Parser[String] = regex("\\d".r)
@@ -65,6 +70,20 @@ trait Parsers[ParseError, Parser[+_]] {
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
+  case class ParseLocation(input: String, offset: Int = 0) {
+    lazy val line: Int = input.slice(0, offset + 1).count(_ == '\n') + 1
+    lazy val column: Int = input.slice(0, offset + 1).lastIndexOf('\n') match {
+      case -1 => offset + 1
+      case lineStart => offset - lineStart
+    }
+  }
+
+  case class ParseError(stack: List[(ParseLocation, String)])
+
+  def errorLocation(e: ParseError): ParseLocation
+
+  def errorMessage(e: ParseError): String
+
   case class ParserOps[A](theParser: Parser[A]) {
 
     // primitive
@@ -98,6 +117,15 @@ trait Parsers[ParseError, Parser[+_]] {
 
     def succeedLaw[A](p: Parser[A])(in: Gen[String]): Prop =
       Prop.forAll(in)(str => run(succeed(str))("1") == Right(str))
+
+    def labelLaw[A](p: Parser[A])(in: SGen[String]): Prop =
+      Prop.forAll(in ** Gen.string) {
+        case (input, msg) =>
+          run(errorLabel(msg)(p))(input) match {
+            case Left(e) => errorMessage(e) == msg
+            case _ => true
+          }
+      }
   }
 
 }

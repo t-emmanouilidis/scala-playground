@@ -12,13 +12,16 @@ class ParTest extends FunSuite {
       Par.unit(seq.headOption.getOrElse(0))
     } else {
       val (l, r) = seq.splitAt(seq.length / 2)
+      // sum the first half and the second half in parallel
       Par.map2(Par.fork(sum(l)), Par.fork(sum(r)))(_ + _)
     }
   }
 
   test("sum.simple") {
-    val es: ExecutorService = Executors.newFixedThreadPool(1)
-    assert(Par.equal(es)(sum(Vector(1, 2, 3)), Par.unit(6)))
+    val es: ExecutorService = Executors.newFixedThreadPool(3)
+    // based on the implementation of sum - above - we need one thread per
+    // half vector in each iteration
+    assert(Par.equal(es)(sum(Vector(1, 2, 3, 4, 5)), Par.unit(15)))
   }
 
   test("unit") {

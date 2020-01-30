@@ -53,8 +53,8 @@ object Par {
   def sequence[A](l: List[Par[A]]): Par[List[A]] =
     l.foldRight[Par[List[A]]](unit(List()))((h, t) => map2(h, t)(_ :: _))
 
-  def equal[A](e: ExecutorService)(pa: Par[A], pb: Par[A]): Boolean = {
-    pa(e).get == pb(e).get
+  def equal[A](es: ExecutorService)(pa: Par[A], pb: Par[A]): Boolean = {
+    pa(es).get == pb(es).get
   }
 
   def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
