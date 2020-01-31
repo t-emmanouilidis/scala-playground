@@ -19,7 +19,7 @@ trait Parsers[Parser[+_]] {
   // primitives
   def slice[A](p: Parser[A]): Parser[String]
 
-  def or[A](one: Parser[A], another: Parser[A]): Parser[A]
+  def or[A](one: Parser[A], another: => Parser[A]): Parser[A]
 
   implicit def string(str: String): Parser[String]
 
@@ -129,15 +129,27 @@ object Parsers {
       case _ => this
     }
 
+    def addCommit(shouldCommit: Boolean): Result[A] = this match  {
+      case Failure(e, committed) => Failure(e, committed || shouldCommit)
+      case _ => this
+    }
+
     def uncommit: Result[A] = this match {
       case Failure(e, true) => Failure.uncommitted(e)
+      case _ => this
+    }
+
+    def advanceAlso(extraCharsNum: Int): Result[A] = this match {
+      case Success(a, charsConsumed) => Success(a, charsConsumed + extraCharsNum)
       case _ => this
     }
   }
 
   case class Success[+A](get: A, charsConsumed: Int) extends Result[A]
 
-  case class Failure private (get: ParseError, committed: Boolean = true) extends Result[Nothing]
+  // if at least one character is consumed before the failure occurs, then
+  // by default we commit to this parser
+  case class Failure private(get: ParseError, committed: Boolean = true) extends Result[Nothing]
 
   object Failure {
     def committed(error: ParseError): Failure = Failure(error)
@@ -151,6 +163,24 @@ object Parsers {
       case -1 => offset + 1
       case lineStart => offset - lineStart
     }
+
+    def getUpTo(n: Int): String = input.substring(offset, offset + n)
+
+    def inputAtOffsetStartsWith(aString: String): Boolean = {
+      assert(aString != null, "aString can't be null")
+
+      val theSlice = input.slice(offset, input.length)
+      theSlice.startsWith(aString)
+    }
+
+    def inputAtOffsetMatchesRegex(aRegex: Regex): Option[String] = {
+      assert(aRegex != null, "aRegex can't be null")
+
+      val theSlice = input.slice(offset, input.length)
+      aRegex.findPrefixOf(theSlice)
+    }
+
+    def advanceBy(n: Int): ParseLocation = copy(offset = offset + n)
   }
 
   case class ParseError(stack: List[(ParseLocation, String)]) {
@@ -167,7 +197,6 @@ object Parsers {
   object ParseError {
     def errorOccurredOn(theLocation: ParseLocation, withMessage: String): ParseError =
       ParseError(List((theLocation, withMessage)))
-
   }
 
 }

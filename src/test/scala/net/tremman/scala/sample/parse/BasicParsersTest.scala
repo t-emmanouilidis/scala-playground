@@ -1,6 +1,7 @@
 package net.tremman.scala.sample.parse
 
-import net.tremman.scala.sample.parse.Parsers.Success
+import net.tremman.scala.sample.parse.BasicParsers.ParseState
+import net.tremman.scala.sample.parse.Parsers.{ParseLocation, Success}
 import org.scalatest.FunSuite
 
 class BasicParsersTest extends FunSuite {
@@ -10,11 +11,13 @@ class BasicParsersTest extends FunSuite {
   import parsers._
 
   test("should be able to parse a simple string") {
-    assert(string("abra")("abra cadabra") === Success("abra", "abra".length))
+    val parseState = ParseState(ParseLocation("abra cadabra"))
+    assert(string("abra")(parseState) === Success("abra", "abra".length))
   }
 
   test("should be able to parse using a basic regex") {
-    assert(regex("\\d".r)("1aa") === Success("1", 1))
+    val parseState = ParseState(ParseLocation("1aa"))
+    assert(regex("\\d".r)(parseState) === Success("1", 1))
   }
 
 }

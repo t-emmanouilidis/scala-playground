@@ -1,5 +1,7 @@
 package net.tremman.scala.sample.parse
 
+import net.tremman.scala.sample.parse.BasicParsers.{BasicParser, ParseState}
+
 import scala.language.{higherKinds, implicitConversions}
 
 trait Json
@@ -18,6 +20,12 @@ object Json {
 
   case class JsonObject(value: Map[String, Json]) extends Json
 
-  def jsonParser[ParseError, Parser[+_]](P: Parsers[Parser]): Parser[Json] = ???
+  type JsonParser = BasicParser[Json]
+
+  def jsonParser(P: JsonParsers): JsonParser = (parseState: ParseState) => ???
+
+}
+
+class JsonParsers extends BasicParsers {
 
 }
