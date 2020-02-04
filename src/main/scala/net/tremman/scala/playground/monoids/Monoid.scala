@@ -1,5 +1,8 @@
 package net.tremman.scala.playground.monoids
 
+import net.tremman.scala.playground.parallel.Par
+import net.tremman.scala.playground.parallel.Par.Par
+
 trait Monoid[A] {
 
   // satisfies associativity
@@ -58,6 +61,47 @@ object Monoid {
     override def op(a1: A => A, a2: A => A): A => A = a1.andThen(a2)
 
     override def zero: A => A = identity
+  }
+
+  def concatenate[A](as: List[A], m: Monoid[A]): A = as.foldLeft(m.zero)(m.op)
+
+  def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
+    as.foldLeft(m.zero)((b, a) => m.op(b, f(a)))
+
+  def foldMapV[A, B](v: List[A], m: Monoid[B])(f: A => B): B = {
+    if (v.isEmpty)
+      m.zero
+    if (v.size == 1)
+      f(v.head)
+    else {
+      val (left, right) = v.splitAt(v.size / 2)
+      m.op(foldMapV(left, m)(f), foldMapV(right, m)(f))
+    }
+  }
+
+  def par[A](m: Monoid[A]): Monoid[Par[A]] = new Monoid[Par[A]] {
+    override def op(oneParser: Par[A], anotherParser: Par[A]): Par[A] = Par.map2(oneParser, anotherParser)(m.op)
+
+    override def zero: Par[A] = Par.unit(m.zero)
+  }
+
+  def parFoldMap[A, B](v: List[A], m: Monoid[B])(f: A => B): Par[B] = foldMapV(v, par(m))(a => Par.lazyUnit(f(a)))
+
+  def ordered(ints: List[Int]): Boolean = {
+
+    val monoid = new Monoid[Option[(Int, Int, Boolean)]] {
+      override def op(a1: Option[(Int, Int, Boolean)],
+                      a2: Option[(Int, Int, Boolean)]): Option[(Int, Int, Boolean)] = (a1, a1) match {
+        case (Some((x1, y1, p)), Some((x2, y2, q))) =>
+          Some((x1 min x2, y1 max y2, p && q && y1 <= x2))
+        case (x, None) => x
+        case (None, x) => x
+      }
+
+      override def zero: Option[(Int, Int, Boolean)] = None
+    }
+
+    foldMapV(ints, monoid)(i => Some(i, i, true)).map(_._3).getOrElse(true)
   }
 
 }
