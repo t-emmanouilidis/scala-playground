@@ -16,7 +16,7 @@ object Par {
     override def get(timeout: Long, unit: TimeUnit): A = get
   }
 
-  def unit[A](a: A): Par[A] = es => UnitFuture(a)
+  def unit[A](a: => A): Par[A] = es => UnitFuture(a)
 
   def map2[A, B, C](pa: Par[A], pb: Par[B])(f: (A, B) => C): Par[C] = es => {
     val a = pa(es).get()
@@ -72,9 +72,9 @@ object Par {
     run(es)(choiceF(k))
   }
 
-  def flatMap[A, B](p: Par[A])(choices: A => Par[B]): Par[B] = es => {
+  def flatMap[A, B](p: Par[A])(f: A => Par[B]): Par[B] = es => {
     val a: A = run(es)(p).get()
-    run(es)(choices(a))
+    run(es)(f(a))
   }
 
   def flatMap2[A, B](p: Par[A])(choices: A => Par[B]): Par[B] = join(map(p)(choices))

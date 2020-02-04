@@ -10,8 +10,6 @@ case class Branch[A](left: Tree[A], right: Tree[A]) extends Tree[A]
 
 object Tree {
 
-
-
   def map[A, B](aTree: Tree[A])(f: A => B): Tree[B] = {
     def go(aTree: Tree[A]): Tree[B] = aTree match {
       case Leaf(value) => Leaf(f(value))

@@ -68,14 +68,14 @@ object Monoid {
   def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
     as.foldLeft(m.zero)((b, a) => m.op(b, f(a)))
 
-  def foldMapV[A, B](v: List[A], m: Monoid[B])(f: A => B): B = {
-    if (v.isEmpty)
-      m.zero
-    if (v.size == 1)
-      f(v.head)
+  def foldMapV[A, B](ls: List[A], mb: Monoid[B])(f: A => B): B = {
+    if (ls.isEmpty)
+      mb.zero
+    if (ls.size == 1)
+      f(ls.head)
     else {
-      val (left, right) = v.splitAt(v.size / 2)
-      m.op(foldMapV(left, m)(f), foldMapV(right, m)(f))
+      val (left, right) = ls.splitAt(ls.size / 2)
+      mb.op(foldMapV(left, mb)(f), foldMapV(right, mb)(f))
     }
   }
 
@@ -87,6 +87,7 @@ object Monoid {
 
   def parFoldMap[A, B](v: List[A], m: Monoid[B])(f: A => B): Par[B] = foldMapV(v, par(m))(a => Par.lazyUnit(f(a)))
 
+  // nice way of checking if a list is ordered
   def ordered(ints: List[Int]): Boolean = {
 
     val monoid = new Monoid[Option[(Int, Int, Boolean)]] {
@@ -101,7 +102,39 @@ object Monoid {
       override def zero: Option[(Int, Int, Boolean)] = None
     }
 
-    foldMapV(ints, monoid)(i => Some(i, i, true)).map(_._3).getOrElse(true)
+    // we start with (1, 1, true), (2, 2, true) etc. and we continue combining adjacent elements
+    // checking that the right element of the first is smaller than the left element of the second
+    foldMapV(ints, monoid)(i => Some(i, i, true)).forall(_._3)
   }
+
+  def productMonoid[A, B](ma: Monoid[A], mb: Monoid[B]): Monoid[(A, B)] = new Monoid[(A, B)] {
+    override def op(a1: (A, B), a2: (A, B)): (A, B) = (ma.op(a1._1, a2._1), mb.op(a1._2, a2._2))
+
+    override def zero: (A, B) = (ma.zero, mb.zero)
+  }
+
+  def mapMergeMonoid[K, V](mv: Monoid[V]): Monoid[Map[K, V]] = new Monoid[Map[K, V]] {
+    override def zero: Map[K, V] = Map[K, V]()
+
+    // concat the key sets of each map together and then fold and apply the value monoid's
+    // operation to each value pair
+    override def op(a: Map[K, V], b: Map[K, V]): Map[K, V] = a.keySet.++(b.keySet)
+      .foldLeft(zero)((acc: Map[K, V], k: K) =>
+        acc.updated(k, mv.op(a.getOrElse(k, mv.zero), b.getOrElse(k, mv.zero))))
+  }
+
+  def functionMonoid[A, B](mb: Monoid[B]): Monoid[A => B] = new Monoid[A => B] {
+    override def op(f: A => B, g: A => B): A => B = a => mb.op(f(a), g(a))
+
+    override def zero: A => B = _ => mb.zero
+  }
+
+  // Calls foldMapV with params:
+  // 1st param: the list
+  // 2nd param: the monoid which is able to take two maps and merge them
+  // in case of conflict it adds their values which are integers
+  // 3rd param: the function that transforms an element of the list to a Map
+  def bag[A](as: List[A]): Map[A, Int] =
+    foldMapV(as, mapMergeMonoid[A, Int](intAddition))((a: A) => Map[A, Int](a -> 1))
 
 }

@@ -1,42 +1,52 @@
 package net.tremman.scala.playground.error
 
 sealed trait Option[+A] {
-  def map[B](f: A => B): Option[B] = None
 
-  def flatMap[B](f: A => Option[B]): Option[B] = None
+  // primitive
+  def flatMap[B](f: A => Option[B]): Option[B] = this match {
+    case Some(get) => f(get)
+    case None => None
+  }
 
-  def getOrElse[B >: A](default: => B): B = default
+  def getOrElse[B >: A](default: => B): B = this match {
+    case Some(get) => get
+    case None => default
+  }
 
-  def orElse[B >: A](ob: => Option[B]): Option[B] = ob
+  def orElse[B >: A](ob: => Option[B]): Option[B] = this match {
+    case s@Some(_) => s
+    case None => ob
+  }
 
-  def filter(f: A => Boolean): Option[A] = None
+  // derived
+  def map[B](f: A => B): Option[B] = flatMap(a => Some(f(a)))
+
+  def filter(f: A => Boolean): Option[A] = flatMap(a => if (f(a)) Some(a) else None)
+
+  def map2[B, C](another: Option[B])(f: (A, B) => C): Option[C] =
+    for {
+      a <- this
+      b <- another
+    } yield f(a, b)
 }
 
 case class Some[+A](get: A) extends Option[A] {
-
-  override def getOrElse[B >: A](default: => B): B = get
-
-  override def map[B](f: A => B): Option[B] = Some(f(get))
-
-  override def flatMap[B](f: A => Option[B]): Option[B] = f(get)
-
-  override def orElse[B >: A](ob: => Option[B]): Option[B] = this
-
-  override def filter(f: A => Boolean): Option[A] = if (f(get)) Some(get) else None
 }
 
 case object None extends Option[Nothing]
 
 object Option {
 
-  def sequence[A](a: List[Option[A]]): Option[List[A]] = a match {
-    case Nil => Some(Nil)
-    case h :: t => h.flatMap(hh => sequence(t).map(hh :: _))
-  }
+  def lift[A, B](f: A => B): Option[A] => Option[B] = _ map f
 
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = a match {
-    case Nil => Some(Nil)
-    case h :: t => SeqUtils.map2(f(h), traverse(t)(f))((b: B, theList: List[B]) => b :: theList)
-  }
+  def sequence[A](ls: List[Option[A]]): Option[List[A]] =
+    ls.foldRight(emptyOptionList[A])((oa: Option[A], ola: Option[List[A]]) =>
+      oa.map2(ola)((a: A, la: List[A]) => a :: la))
+
+  def traverse[A, B](ls: List[A])(f: A => Option[B]): Option[List[B]] =
+    ls.foldRight(emptyOptionList[B])((a: A, olb: Option[List[B]]) =>
+      f(a).map2(olb)((b: B, lb: List[B]) => b :: lb))
+
+  private def emptyOptionList[A]: Option[List[A]] = Some(List[A]())
 
 }

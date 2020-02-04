@@ -35,7 +35,7 @@ trait Parsers[Parser[+_]] {
 
   def attempt[A](aParser: Parser[A]): Parser[A]
 
-  // non primitives
+  // derived
 
   // a parser that identifies a single digit
   def digit: Parser[String] = regex("\\d".r)
@@ -57,9 +57,12 @@ trait Parsers[Parser[+_]] {
     if (n <= 0) succeed(List())
     else map2(aParser, listOfN(n - 1, aParser))(_ :: _)
 
-  def map[A, B](theParser: Parser[A])(f: A => B): Parser[B] = theParser.flatMap(f andThen succeed)
+  // flatMap expects a function that takes A and returns Parser[B]
+  // the function resulted by composing f with succeed() is such a function
+  def map[A, B](theParser: Parser[A])(f: A => B): Parser[B] =
+    theParser.flatMap(f andThen succeed)
 
-  // applies parser A, then parser B and returns a Parser for their results' product
+  // applies parser A, then parser B and returns a parser for their results' product
   def product[A, B](one: Parser[A], another: Parser[B]): Parser[(A, B)] = map2(one, another)((_, _))
 
   // applies parser A, then parser B and then the function f to their results
@@ -84,8 +87,10 @@ trait Parsers[Parser[+_]] {
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
+  // basic implementation of returning the location of the given parse error
   def errorLocation(e: ParseError): ParseLocation = e.stack.head._1
 
+  // basic implementation of returning the message of a parse error
   def errorMessage(e: ParseError): String = e.stack.head._2
 
   case class ParserOps[A](theParser: Parser[A]) {
