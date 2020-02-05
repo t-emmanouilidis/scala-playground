@@ -23,8 +23,15 @@ trait Monad[F[_]] extends Functor[F] {
     flatMap(fa)(a => map(fb)(b => f(a, b)))
 
   def sequence[A](ls: List[F[A]]): F[List[A]] =
-    ls.foldRight(unit(List[A]()))((fa: F[A], theList: F[List[A]]) =>
-      map2(fa, theList)((a: A, theList: List[A]) => a :: theList))
+    ls.foldRight(unit(List[A]()))((fa: F[A], fla: F[List[A]]) => {
+      println("Loop into list of F[A]s, F[A]: " + fa + ", F[List[A]]: " + fla)
+      map2(fa, fla)((a: A, la: List[A]) => {
+        println("Inner loop, A elem: " + a + ", list of As: " + la)
+        a :: la
+      }
+      )
+    }
+    )
 
   def traverse[A, B](ls: List[A])(f: A => F[B]): F[List[B]] =
     ls.foldRight(unit(List[B]()))((a: A, flb: F[List[B]]) =>
@@ -49,7 +56,7 @@ object Monad {
   }
 
   val optionMonad: Monad[error.Option] = new Monad[error.Option] {
-    override def unit[A](a: => A): error.Option[A] = error.None
+    override def unit[A](a: => A): error.Option[A] = error.Some(a)
 
     override def flatMap[A, B](fa: error.Option[A])(f: A => error.Option[B]): error.Option[B] = fa.flatMap(f)
   }
