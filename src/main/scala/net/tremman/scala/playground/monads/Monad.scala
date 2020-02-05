@@ -17,6 +17,8 @@ trait Monad[F[_]] extends Functor[F] {
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
 
   // derived
+  def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(b => g(b))
+
   override def map[A, B](fa: F[A])(f: A => B): F[B] = flatMap(fa)(a => unit(f(a)))
 
   def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
@@ -38,6 +40,8 @@ trait Monad[F[_]] extends Functor[F] {
       map2(f(a), flb)((b: B, lb: List[B]) => b :: lb))
 
   def replicateM[A](n: Int, fa: F[A]): F[List[A]] = sequence(List.fill(n)(fa))
+
+  def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = map2(fa, fb)((_, _))
 
 }
 
