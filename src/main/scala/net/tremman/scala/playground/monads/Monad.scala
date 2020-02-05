@@ -17,20 +17,31 @@ trait Monad[F[_]] extends Functor[F] {
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
 
   // derived
+  def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(b => g(b))
+
   override def map[A, B](fa: F[A])(f: A => B): F[B] = flatMap(fa)(a => unit(f(a)))
 
   def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
     flatMap(fa)(a => map(fb)(b => f(a, b)))
 
   def sequence[A](ls: List[F[A]]): F[List[A]] =
-    ls.foldRight(unit(List[A]()))((fa: F[A], fal: F[List[A]]) =>
-      map2(fa, fal)((a: A, la: List[A]) => a :: la))
+    ls.foldRight(unit(List[A]()))((fa: F[A], fla: F[List[A]]) => {
+      println("Loop into list of F[A]s, F[A]: " + fa + ", F[List[A]]: " + fla)
+      map2(fa, fla)((a: A, la: List[A]) => {
+        println("Inner loop, A elem: " + a + ", list of As: " + la)
+        a :: la
+      }
+      )
+    }
+    )
 
   def traverse[A, B](ls: List[A])(f: A => F[B]): F[List[B]] =
     ls.foldRight(unit(List[B]()))((a: A, flb: F[List[B]]) =>
       map2(f(a), flb)((b: B, lb: List[B]) => b :: lb))
 
   def replicateM[A](n: Int, fa: F[A]): F[List[A]] = sequence(List.fill(n)(fa))
+
+  def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = map2(fa, fb)((_, _))
 
 }
 
@@ -49,7 +60,7 @@ object Monad {
   }
 
   val optionMonad: Monad[error.Option] = new Monad[error.Option] {
-    override def unit[A](a: => A): error.Option[A] = error.None
+    override def unit[A](a: => A): error.Option[A] = error.Some(a)
 
     override def flatMap[A, B](fa: error.Option[A])(f: A => error.Option[B]): error.Option[B] = fa.flatMap(f)
   }
