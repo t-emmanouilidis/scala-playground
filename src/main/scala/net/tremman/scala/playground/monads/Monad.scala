@@ -8,7 +8,7 @@ import net.tremman.scala.playground.{error, stream}
 
 import scala.language.higherKinds
 
-// all monads are functors but not the other way
+// all monads are functors but all functors are not monads
 trait Monad[F[_]] extends Functor[F] {
 
   // primitive
@@ -23,8 +23,8 @@ trait Monad[F[_]] extends Functor[F] {
     flatMap(fa)(a => map(fb)(b => f(a, b)))
 
   def sequence[A](ls: List[F[A]]): F[List[A]] =
-    ls.foldRight(unit(List[A]()))((fa: F[A], theList: F[List[A]]) =>
-      map2(fa, theList)((a: A, theList: List[A]) => a :: theList))
+    ls.foldRight(unit(List[A]()))((fa: F[A], fal: F[List[A]]) =>
+      map2(fa, fal)((a: A, la: List[A]) => a :: la))
 
   def traverse[A, B](ls: List[A])(f: A => F[B]): F[List[B]] =
     ls.foldRight(unit(List[B]()))((a: A, flb: F[List[B]]) =>
