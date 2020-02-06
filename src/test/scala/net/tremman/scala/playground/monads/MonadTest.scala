@@ -1,20 +1,14 @@
 package net.tremman.scala.playground.monads
 
-<<<<<<< HEAD
-import net.tremman.scala.playground.error
-import net.tremman.scala.playground.error.Some
-=======
 import net.tremman.scala.playground.error.{None, Option, Some}
->>>>>>> d9ea88f8136afd968a27df6edb66e6587d85d641
 import org.scalatest.FunSuite
 
 class MonadTest extends FunSuite {
 
-<<<<<<< HEAD
   test("should be able to replicate a list monad") {
     val listMonad = Monad.listMonad
 
-    val lss: List[List[Int]] = listMonad.replicateM(2, List(1,2))
+    val lss: List[List[Int]] = listMonad.replicateM(2, List(1, 2))
 
     println(lss)
   }
@@ -22,12 +16,11 @@ class MonadTest extends FunSuite {
   test("should be able to replicate an option monad") {
     val optionMonad = Monad.optionMonad
 
-    val opp: error.Option[List[Int]] = optionMonad.replicateM(2, Some(1))
+    val opp: Option[List[Int]] = optionMonad.replicateM(2, Some(1))
 
     println(opp)
   }
 
-=======
   test("should be able to replicate the option monad") {
     val result = Monad.optionMonad.replicateM(2, Some(1))
 
@@ -58,10 +51,11 @@ class MonadTest extends FunSuite {
     assert(compose(compose(f, g), h)(1) === compose(f, compose(g, h))(1))
   }
 
-  test("compose identity") {
+  test("compose identity for option") {
     val f: Int => Option[Int] = i => Some(i * 2)
     import Monad.optionMonad.{compose, flatMap}
     val unit: Int => Option[Int] = i => Monad.optionMonad.unit(i)
+
     assert(compose(f, unit)(2) === f(2))
     assert(compose(f, unit)(2) === compose(unit, f)(2))
 
@@ -69,6 +63,16 @@ class MonadTest extends FunSuite {
     assert(flatMap(unit(1))(f) === f(1))
   }
 
+  test("compose identity for list") {
+    val f: Int => List[Int] = i => List(i * 2)
+    import Monad.listMonad.{compose, flatMap}
+    val unit: Int => List[Int] = i => Monad.listMonad.unit(i)
 
->>>>>>> d9ea88f8136afd968a27df6edb66e6587d85d641
+    assert(compose(f, unit)(2) === f(2))
+    assert(compose(f, unit)(2) === compose(unit, f)(2))
+
+    assert(flatMap(List(2))(unit) === List(2))
+    assert(flatMap(unit(2))(f) === f(2))
+  }
+
 }

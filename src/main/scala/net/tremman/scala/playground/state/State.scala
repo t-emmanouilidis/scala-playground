@@ -6,6 +6,7 @@ import scala.annotation.tailrec
 // run is a transition from the current state to the new one
 // together with the outcome of the state transition
 case class State[S, +A](run: S => (A, S)) {
+
   def map[B](f: A => B): State[S, B] = flatMap(a => State.unit(f(a)))
 
   def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] =
@@ -18,6 +19,7 @@ case class State[S, +A](run: S => (A, S)) {
 }
 
 object State {
+  
   def unit[S, A](a: A): State[S, A] = State(s => (a, s))
 
   def sequence[S, A](sas: List[State[S, A]]): State[S, List[A]] = {
