@@ -53,31 +53,31 @@ trait Monad[F[_]] extends Functor[F] {
 
 object Monad {
 
-  val genMonad: Monad[Gen] = new Monad[Gen] {
+  object GenMonad extends Monad[Gen] {
     override def unit[A](a: => A): Gen[A] = Gen.unit(a)
 
     override def flatMap[A, B](fa: Gen[A])(f: A => Gen[B]): Gen[B] = fa.flatMap(f)
   }
 
-  val parMonad: Monad[Par] = new Monad[Par] {
+  object ParMonad extends Monad[Par] {
     override def unit[A](a: => A): Par[A] = Par.unit(a)
 
     override def flatMap[A, B](fa: Par[A])(f: A => Par[B]): Par[B] = Par.flatMap(fa)(f)
   }
 
-  val optionMonad: Monad[error.Option] = new Monad[error.Option] {
+  object OptionMonad extends Monad[error.Option] {
     override def unit[A](a: => A): error.Option[A] = error.Some(a)
 
     override def flatMap[A, B](fa: error.Option[A])(f: A => error.Option[B]): error.Option[B] = fa.flatMap(f)
   }
 
-  val streamMonad: Monad[stream.Stream] = new Monad[stream.Stream] {
+  object StreamMonad extends Monad[stream.Stream] {
     override def unit[A](a: => A): stream.Stream[A] = stream.Stream.constant(a)
 
     override def flatMap[A, B](fa: stream.Stream[A])(f: A => stream.Stream[B]): stream.Stream[B] = fa.flatMap(f)
   }
 
-  val listMonad: Monad[List] = new Monad[List] {
+  object ListMonad extends Monad[List] {
     override def unit[A](a: => A): List[A] = List(a)
 
     override def flatMap[A, B](fa: List[A])(f: A => List[B]): List[B] = fa.flatMap(f)
@@ -86,11 +86,24 @@ object Monad {
   class StateMonads[S] {
     type StateS[A] = State[S, A]
 
-    val stateMonad: Monad[StateS] = new Monad[StateS] {
+    object StateMonad extends Monad[StateS] {
       override def unit[A](a: => A): State[S, A] = State(s => (a, s))
 
       override def flatMap[A, B](fa: StateS[A])(f: A => StateS[B]): StateS[B] = fa.flatMap(f)
     }
+
+  }
+
+  object IntStateMonad extends Monad[({type IntState[A] = State[Int, A]})#IntState] {
+    override def unit[A](a: => A): State[Int, A] = State(s => (a, s))
+
+    override def flatMap[A, B](fa: State[Int, A])(f: A => State[Int, B]): State[Int, B] = fa.flatMap(f)
+  }
+
+  def stateMonad[S] = new Monad[({type f[x] = State[S, x]})#f] {
+    override def unit[A](a: => A): State[S, A] = State(s => (a, s))
+
+    override def flatMap[A, B](fa: State[S, A])(f: A => State[S, B]): State[S, B] = fa.flatMap(f)
   }
 
 }
