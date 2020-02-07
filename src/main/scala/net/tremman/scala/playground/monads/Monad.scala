@@ -41,9 +41,9 @@ trait Monad[F[_]] extends Functor[F] {
     }
     )
 
-  def traverse[A, B](ls: List[A])(f: A => F[B]): F[List[B]] =
-    ls.foldRight(unit(List[B]()))((a: A, flb: F[List[B]]) =>
-      map2(f(a), flb)((b: B, lb: List[B]) => b :: lb))
+  def traverse[A, B](as: List[A])(f: A => F[B]): F[List[B]] =
+    as.foldRight(unit(List[B]()))((a: A, acc: F[List[B]]) =>
+      map2(f(a), acc)((b: B, ls: List[B]) => b :: ls))
 
   def replicateM[A](n: Int, fa: F[A]): F[List[A]] = sequence(List.fill(n)(fa))
 
@@ -94,13 +94,15 @@ object Monad {
 
   }
 
-  object IntStateMonad extends Monad[({type IntState[A] = State[Int, A]})#IntState] {
+  // a State object whose state type is Int. The type of the outcome can be whatever we want
+  object IntStateMonad extends Monad[({type IntState[E] = State[Int, E]})#IntState] {
     override def unit[A](a: => A): State[Int, A] = State(s => (a, s))
 
     override def flatMap[A, B](fa: State[Int, A])(f: A => State[Int, B]): State[Int, B] = fa.flatMap(f)
   }
 
-  def stateMonad[S] = new Monad[({type f[x] = State[S, x]})#f] {
+  // a stateMonad is parameterized on the type of the state (S) and then on the type of the outcome (E)
+  def stateMonad[S] = new Monad[({type F[E] = State[S, E]})#F] {
     override def unit[A](a: => A): State[S, A] = State(s => (a, s))
 
     override def flatMap[A, B](fa: State[S, A])(f: A => State[S, B]): State[S, B] = fa.flatMap(f)
