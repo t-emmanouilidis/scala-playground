@@ -1,5 +1,6 @@
 package net.tremman.scala.playground.monads
 
+import net.tremman.scala.playground.error.Either
 import net.tremman.scala.playground.parallel.Par
 import net.tremman.scala.playground.parallel.Par.Par
 import net.tremman.scala.playground.state.State
@@ -106,6 +107,12 @@ object Monad {
     override def unit[A](a: => A): State[S, A] = State(s => (a, s))
 
     override def flatMap[A, B](fa: State[S, A])(f: A => State[S, B]): State[S, B] = fa.flatMap(f)
+  }
+
+  def eitherMonad[E]: Monad[({type f[x] = Either[E, x]})#f] = new Monad[({type f[x] = Either[E, x]})#f] {
+    override def unit[A](a: => A): Either[E, A] = net.tremman.scala.playground.error.Right(a)
+
+    override def flatMap[A, B](fa: Either[E, A])(f: A => Either[E, B]): Either[E, B] = fa.flatMap(f)
   }
 
 }
