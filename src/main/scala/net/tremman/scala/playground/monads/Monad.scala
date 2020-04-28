@@ -1,16 +1,18 @@
 package net.tremman.scala.playground.monads
 
 import net.tremman.scala.playground.error.Either
+import net.tremman.scala.playground.functors.Applicative
 import net.tremman.scala.playground.parallel.Par
 import net.tremman.scala.playground.parallel.Par.Par
 import net.tremman.scala.playground.state.State
+import net.tremman.scala.playground.stream.Cons
 import net.tremman.scala.playground.test.property.Gen
 import net.tremman.scala.playground.{error, stream}
 
-import scala.language.higherKinds
+import scala.language.{higherKinds, implicitConversions}
 
 // all monads are functors but all functors are not monads
-trait Monad[F[_]] extends Functor[F] {
+trait Monad[F[_]] extends Applicative[F] {
 
   // primitive
   def unit[A](a: => A): F[A]
@@ -20,6 +22,8 @@ trait Monad[F[_]] extends Functor[F] {
   def _flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = compose((_: Unit) => fa, f)(fa)
 
   // derived
+  override def apply[A, B](fab: F[A => B])(fa: F[A]): F[B] = map2(fa, fab)((a, f) => f(a))
+
   def join[A](ffa: F[F[A]]): F[A] = flatMap(ffa)(identity)
 
   def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(b => g(b))
@@ -28,28 +32,69 @@ trait Monad[F[_]] extends Functor[F] {
 
   override def map[A, B](fa: F[A])(f: A => B): F[B] = flatMap(fa)(a => unit(f(a)))
 
-  def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
+  override def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
     flatMap(fa)(a => map(fb)(b => f(a, b)))
 
-  def sequence[A](ls: List[F[A]]): F[List[A]] =
+  override def sequence[A](ls: List[F[A]]): F[List[A]] =
     ls.foldRight(unit(List[A]()))((fa: F[A], fla: F[List[A]]) => {
       println("Loop into list of F[A]s, F[A]: " + fa + ", F[List[A]]: " + fla)
       map2(fa, fla)((a: A, la: List[A]) => {
         println("Inner loop, A elem: " + a + ", list of As: " + la)
         a :: la
-      }
-      )
-    }
-    )
+      })
+    })
 
-  def traverse[A, B](as: List[A])(f: A => F[B]): F[List[B]] =
+  override def traverse[A, B](as: List[A])(f: A => F[B]): F[List[B]] =
     as.foldRight(unit(List[B]()))((a: A, acc: F[List[B]]) =>
       map2(f(a), acc)((b: B, ls: List[B]) => b :: ls))
 
-  def replicateM[A](n: Int, fa: F[A]): F[List[A]] = sequence(List.fill(n)(fa))
+  override def replicateM[A](n: Int, fa: F[A]): F[List[A]] = sequence(List.fill(n)(fa))
 
-  def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = map2(fa, fb)((_, _))
+  override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = map2(fa, fb)((_, _))
 
+  def doWhile[A](a: F[A])(cond: A => F[Boolean]): F[Unit] = for {
+    a1 <- a
+    ok <- cond(a1)
+    _ <- if (ok) doWhile(a)(cond) else unit(())
+  } yield ()
+
+  def forever[A, B](a: F[A]): F[B] = {
+    lazy val t: F[B] = forever(a)
+    a.flatMap(_ => t)
+  }
+
+  def foldM[A, B](l: stream.Stream[A])(z: B)(f: (B, A) => F[B]): F[B] = l match {
+    case Cons(h, t) => f(z, h()) flatMap (z2 => foldM(t())(z2)(f))
+    case _ => unit(z)
+  }
+
+  def as[A, B](a: F[A])(b: B): F[B] = map(a)(_ => b)
+
+  def skip[A](a: F[A]): F[Unit] = as(a)(())
+
+  def foldM_[A, B](l: stream.Stream[A])(z: B)(f: (B, A) => F[B]): F[Unit] = skip(foldM(l)(z)(f))
+
+  def foreachM[A](l: stream.Stream[A])(f: A => F[Unit]): F[Unit] = foldM_(l)(())((_, a) => skip(f(a)))
+
+  implicit def asMonadic[A](a: F[A]): Monadic[F, A] =
+    new Monadic[F, A] {
+      override val F: Monad[F] = Monad.this
+
+      override def get: F[A] = a
+    }
+
+}
+
+trait Monadic[F[_], A] {
+  val F: Monad[F]
+
+  def get: F[A]
+
+  private val a = get
+
+  def map[B](f: A => B): F[B] = F.map(a)(f)
+
+  def flatMap[B](f: A => F[B]): F[B] = F.flatMap(a)(f)
 }
 
 object Monad {
@@ -103,7 +148,7 @@ object Monad {
   }
 
   // a stateMonad is parameterized on the type of the state (S) and then on the type of the outcome (E)
-  def stateMonad[S] = new Monad[({type F[E] = State[S, E]})#F] {
+  def stateMonad[S]: Monad[({type f[x] = State[S, x]})#f] = new Monad[({type f[x] = State[S, x]})#f] {
     override def unit[A](a: => A): State[S, A] = State(s => (a, s))
 
     override def flatMap[A, B](fa: State[S, A])(f: A => State[S, B]): State[S, B] = fa.flatMap(f)
